@@ -1,0 +1,203 @@
+
+/*
+ * Licensed to GraphHopper GmbH under one or more contributor
+ * license agreements. See the NOTICE file distributed with this work for
+ * additional information regarding copyright ownership.
+ *
+ * GraphHopper GmbH licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except in
+ * compliance with the License. You may obtain a copy of the License at
+ *
+ *       http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.graphhopper.jsprit.examples;
+
+import com.graphhopper.jsprit.analysis.toolbox.AlgorithmSearchProgressChartListener;
+import com.graphhopper.jsprit.analysis.toolbox.GraphStreamViewer;
+import com.graphhopper.jsprit.analysis.toolbox.Plotter;
+import com.graphhopper.jsprit.analysis.toolbox.StopWatch;
+import com.graphhopper.jsprit.core.algorithm.VehicleRoutingAlgorithm;
+import com.graphhopper.jsprit.core.algorithm.box.Jsprit;
+import com.graphhopper.jsprit.core.algorithm.listener.VehicleRoutingAlgorithmListeners.Priority;
+import com.graphhopper.jsprit.core.problem.Location;
+import com.graphhopper.jsprit.core.problem.VehicleRoutingProblem;
+import com.graphhopper.jsprit.core.problem.VehicleRoutingProblem.Builder;
+import com.graphhopper.jsprit.core.problem.VehicleRoutingProblem.FleetSize;
+import com.graphhopper.jsprit.core.problem.cost.VehicleRoutingTransportCosts;
+import com.graphhopper.jsprit.core.problem.job.Service;
+import com.graphhopper.jsprit.core.problem.solution.VehicleRoutingProblemSolution;
+import com.graphhopper.jsprit.core.problem.solution.route.activity.TimeWindow;
+import com.graphhopper.jsprit.core.problem.vehicle.Vehicle;
+import com.graphhopper.jsprit.core.problem.vehicle.VehicleImpl;
+import com.graphhopper.jsprit.core.problem.vehicle.VehicleType;
+import com.graphhopper.jsprit.core.problem.vehicle.VehicleTypeImpl;
+import com.graphhopper.jsprit.core.reporting.SolutionPrinter;
+import com.graphhopper.jsprit.core.reporting.SolutionPrinter.Print;
+import com.graphhopper.jsprit.core.util.Coordinate;
+import com.graphhopper.jsprit.core.util.Solutions;
+import com.graphhopper.jsprit.core.util.VehicleRoutingTransportCostsMatrix;
+import com.graphhopper.jsprit.instance.reader.CordeauReader;
+import com.graphhopper.jsprit.io.problem.VrpXMLReader;
+import com.graphhopper.jsprit.io.problem.VrpXMLWriter;
+import com.graphhopper.jsprit.util.Examples;
+
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Scanner;
+
+
+public class MDVRP_OCP{
+	
+	
+
+
+	public static void main(String[] args) throws FileNotFoundException {
+        /*
+         * some preparation - create output folder
+		 */
+        Examples.createOutputFolder();
+        
+        
+        
+
+        VehicleRoutingProblem.Builder vrpBuilder = VehicleRoutingProblem.Builder.newInstance();
+     
+        //new VrpXMLReader(vrpBuilder).read("eclipse-workspace\\tutotial\\src\\main\\java\\com\\graphhopper\\jsprit\\examples\\cordeau01.xml");
+  
+        List<String> stngFile = new ArrayList<String>();
+        Scanner scnr = new Scanner(new FileReader(
+                // "C:\\Users\\malla\\Documents\\AAA_Importantes\\PIBITI2023\\ECT_teste1.txt"));
+        		"C:\\Users\\malla\\Documents\\AAA_Importantes\\livros\\PIBITI_2023\\cruzeta.txt"));
+        String str;
+        while (scnr.hasNext()) {
+                    str = scnr.next();
+                    stngFile.add(str);
+                }
+        
+        System.out.println(stngFile.indexOf("NUMTYPS"));
+        
+        int n = (stngFile.indexOf("MATRIX") - stngFile.indexOf("TIME"))/7;
+        System.out.println(n);
+        
+        System.out.println(stngFile);
+      
+        
+        
+        
+        VehicleType vehicleType = VehicleTypeImpl.Builder.newInstance("1_type")
+        		.addCapacityDimension(0,20000)
+        		.setCostPerDistance(1.0)
+        		.build();
+
+       com.graphhopper.jsprit.core.problem.Location.Builder loc = new Location.Builder();
+       loc.setId("P0");
+       // cruzeta.txt : 
+       loc.setCoordinate(new Coordinate(-5.59121*-100,-37.31028*-100));
+       
+       
+       Location P0 = loc.build();
+ 
+        for (int i = 0; i<13;i++) {
+            VehicleImpl.Builder vehicleBuilder = VehicleImpl.Builder.newInstance("1_" + (i+1) + "_vehicle");
+            vehicleBuilder.setStartLocation(P0);
+            vehicleBuilder.setType(vehicleType);
+            VehicleImpl vehicle = vehicleBuilder.build();
+            vrpBuilder.addVehicle(vehicle);
+        }
+        
+       
+   
+        
+        
+        // Para o arquivo de cruzeta,txt
+        
+      
+         int n0 = 18;
+        for (int i = 1; i< n; i++) {
+        	
+        	loc.setId("P"+i);
+            loc.setCoordinate(new Coordinate(Double.parseDouble(stngFile.get(7*i+1 + n0))*-100, Double.parseDouble(stngFile.get(7*i+2 + n0))*-100));
+            Location P = loc.build();
+        	
+        	 Service service = Service.Builder.newInstance("P" + i)
+             		//.setServiceTime(Integer.parseInt(stngFile.get(7*i+6 + n0)))
+        			.setServiceTime(0)
+             		.addSizeDimension(0, Integer.parseInt(stngFile.get(7*i+3 + n0)))
+             		.setTimeWindow(TimeWindow.newInstance(0, 720))
+             		.setLocation(P)
+             		.build();
+        	 
+             vrpBuilder.addJob(service);
+        } 
+        	
+        
+        // setting cost matrix
+        
+        VehicleRoutingTransportCostsMatrix.Builder costMatrixBuilder = VehicleRoutingTransportCostsMatrix.Builder.newInstance(true);
+        
+        int n00 = n0 + n*7+3;
+        for (int i = 0; i<n;i++) {
+        	for(int j = i; j<n;j++) {
+        		int i2 = 0;
+        		if(i>1) {
+            		i2 = (i-1)*i/2;
+            	}
+        		if(i == n-1 && j ==n-1) {
+        			
+        		} else {
+        			int indice = 3*(n*(i)- i*(i-1)/2 + i2) + 3*j + n00;
+        			costMatrixBuilder.addTransportDistance("P" + i,"P" + j, Double.parseDouble(stngFile.get(indice)));
+        			costMatrixBuilder.addTransportTime("P" + i,"P" + j, Double.parseDouble(stngFile.get(indice)));
+        			//System.out.println(i + "," + j +  "," + indice +  ","+ Double.parseDouble(stngFile.get(indice)) );
+        		}
+        		
+        
+        	}
+        }
+
+
+		/*
+         * define problem with finite fleet
+		 */
+        vrpBuilder.setFleetSize(FleetSize.FINITE);
+
+		/*
+         * build the problem
+		 */
+        vrpBuilder.setRoutingCost(costMatrixBuilder.build());
+        VehicleRoutingProblem vrp = vrpBuilder.build();
+    
+
+		/*
+         * plot to see how the problem looks like
+		 */
+//		SolutionPlotter.plotVrpAsPNG(vrp, "output/problem01.png", "p01");
+
+		/*
+         * solve the problem
+		 */
+        VehicleRoutingAlgorithm vra = Jsprit.Builder.newInstance(vrp).setProperty(Jsprit.Parameter.THREADS, "5").buildAlgorithm();
+        vra.getAlgorithmListeners().addListener(new StopWatch(), Priority.HIGH);
+        vra.getAlgorithmListeners().addListener(new AlgorithmSearchProgressChartListener("output/progress.png"));
+        Collection<VehicleRoutingProblemSolution> solutions = vra.searchSolutions();
+
+        SolutionPrinter.print(Solutions.bestOf(solutions));
+
+        new Plotter(vrp, Solutions.bestOf(solutions)).setLabel(Plotter.Label.ID).plot("output/p01_solution.png", "p01");
+
+        new GraphStreamViewer(vrp, Solutions.bestOf(solutions)).setRenderDelay(100).display();
+        SolutionPrinter.print(vrp,Solutions.bestOf(solutions),Print.VERBOSE);
+
+    }
+
+}
